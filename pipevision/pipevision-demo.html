@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PipeVision - CAD to AR Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0a0e17 0%, #1a1f2e 100%);
+            min-height: 100vh;
+            color: #ffffff;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00d4ff, #7b2fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: #8892a0;
+            font-size: 1.1rem;
+        }
+
+        .upload-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed #3a4553;
+            border-radius: 16px;
+            padding: 60px 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .upload-section.dragover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #8892a0;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            font-size: 0.9rem;
+            color: #5a6270;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(90deg, #00d4ff, #7b2fff);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            display: none;
+            gap: 20px;
+        }
+
+        .results.show {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        @media (max-width: 768px) {
+            .results.show {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card h3 {
+            font-size: 1rem;
+            color: #00d4ff;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .thumbnail-container {
+            background: #0a0e17;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .thumbnail-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .thumbnail-placeholder {
+            color: #3a4553;
+            font-size: 3rem;
+        }
+
+        .validation-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .validation-item:last-child {
+            border-bottom: none;
+        }
+
+        .validation-label {
+            color: #8892a0;
+        }
+
+        .validation-value {
+            font-weight: 600;
+        }
+
+        .validation-value.success {
+            color: #00d4ff;
+        }
+
+        .validation-value.warning {
+            color: #ffcc00;
+        }
+
+        .validation-value.error {
+            color: #ff4757;
+        }
+
+        .layers-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .layer-tag {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .missing-fields {
+            margin-top: 16px;
+        }
+
+        .missing-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin: 4px;
+        }
+
+        .export-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .export-section.show {
+            display: block;
+        }
+
+        .export-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .export-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 24px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.error {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid #ff4757;
+        }
+
+        .status-message.success {
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid #00d4ff;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: #5a6270;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">◇ PipeVision</div>
+            <p class="tagline">Transform CAD to AR-Ready 3D</p>
+        </header>
+
+        <div class="upload-section" id="dropZone">
+            <div class="upload-icon">📁</div>
+            <p class="upload-text">Drag & drop your DWG or DXF file here</p>
+            <p class="upload-subtext">or click to browse</p>
+            <input type="file" id="fileInput" accept=".dwg,.dxf">
+            <button class="btn" id="uploadBtn">Select File</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your file...</p>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+
+        <div class="results" id="results">
+            <div class="card">
+                <h3>📊 Preview</h3>
+                <div class="thumbnail-container" id="thumbnailContainer">
+                    <div class="thumbnail-placeholder">🖼️</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🔍 Validation</h3>
+                <div id="validationResults">
+                    <div class="validation-item">
+                        <span class="validation-label">File</span>
+                        <span class="validation-value" id="fileName">-</span>
+                    </div>
+                    <div class="validation-item">
+                        <span class="validation-label">Layers</span>
+                        <span class="validation-value success" id="layerCount">-</span>
+                    </div>
+                    <div class="validation-item">
+                        <span class="validation-label">Entities</span>
+                        <span class="validation-value success" id="entityCount">-</span>
+                    </div>
+                    <div class="validation-item">
+                        <span class="validation-label">Has CRS</span>
+                        <span class="validation-value" id="hasCRS">-</span>
+                    </div>
+                    <div class="validation-item">
+                        <span class="validation-label">Has Depth</span>
+                        <span class="validation-value" id="hasDepth">-</span>
+                    </div>
+                </div>
+
+                <div class="layers-list" id="layersList"></div>
+
+                <div class="missing-fields" id="missingFields"></div>
+            </div>
+        </div>
+
+        <div class="export-section" id="exportSection">
+            <div class="card">
+                <h3>📤 Export Formats</h3>
+                <div class="export-buttons">
+                    <button class="export-btn" onclick="exportFormat('geojson')">GeoJSON</button>
+                    <button class="export-btn" onclick="exportFormat('csv')">CSV</button>
+                    <button class="export-btn" onclick="exportFormat('gltf')">glTF</button>
+                    <button class="export-btn" onclick="exportFormat('fbx')">FBX</button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with ❤️ in Duluth, Minnesota | <a href="https://pipevision.dev">pipevision.dev</a></p>
+        </footer>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let currentProjectId = null;
+
+        // Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const exportSection = document.getElementById('exportSection');
+        const statusMessage = document.getElementById('statusMessage');
+
+        // Event Listeners
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        dropZone.addEventListener('click', (e) => {
+            if (e.target !== uploadBtn) {
+                fileInput.click();
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        async function handleFile(file) {
+            // Validate file type
+            const validExtensions = ['.dwg', '.dxf'];
+            const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+            
+            if (!validExtensions.includes(ext)) {
+                showStatus('Please upload a DWG or DXF file.', 'error');
+                return;
+            }
+
+            // Show loading
+            loading.classList.add('show');
+            results.classList.remove('show');
+            exportSection.classList.remove('show');
+            hideStatus();
+
+            try {
+                // Upload file
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const uploadResponse = await fetch(`${API_URL}/api/uploads/`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                const uploadData = await uploadResponse.json();
+                currentProjectId = uploadData.project_id;
+
+                // Wait a moment for processing
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                // Get validation
+                const validationResponse = await fetch(`${API_URL}/api/projects/${currentProjectId}/validation`);
+                const validationData = await validationResponse.json();
+
+                // Display results
+                displayResults(validationData, file.name);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('Failed to process file. Make sure the API is running.', 'error');
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        function displayResults(data, fileName) {
+            // Update validation info
+            document.getElementById('fileName').textContent = fileName;
+            document.getElementById('layerCount').textContent = data.layers?.length || 0;
+            document.getElementById('entityCount').textContent = data.layers?.reduce((sum, l) => sum + (l.entity_count || 0), 0) || 0;
+            
+            const hasCRS = document.getElementById('hasCRS');
+            hasCRS.textContent = data.detected_crs ? 'Yes' : 'No';
+            hasCRS.className = 'validation-value ' + (data.detected_crs ? 'success' : 'warning');
+
+            const hasDepth = document.getElementById('hasDepth');
+            hasDepth.textContent = data.has_depth ? 'Yes' : 'No';
+            hasDepth.className = 'validation-value ' + (data.has_depth ? 'success' : 'warning');
+
+            // Display layers
+            const layersList = document.getElementById('layersList');
+            layersList.innerHTML = '';
+            
+            if (data.layers) {
+                data.layers.forEach(layer => {
+                    const tag = document.createElement('span');
+                    tag.className = 'layer-tag';
+                    tag.style.background = layer.color || 'rgba(255,255,255,0.2)';
+                    tag.style.color = getContrastColor(layer.color || '#ffffff');
+                    tag.textContent = `${layer.name} (${layer.entity_count || 0})`;
+                    layersList.appendChild(tag);
+                });
+            }
+
+            // Display missing fields
+            const missingFields = document.getElementById('missingFields');
+            missingFields.innerHTML = '';
+            
+            if (data.missing_fields && data.missing_fields.length > 0) {
+                const title = document.createElement('p');
+                title.style.color = '#8892a0';
+                title.style.marginBottom = '8px';
+                title.textContent = 'Missing Data:';
+                missingFields.appendChild(title);
+
+                data.missing_fields.forEach(field => {
+                    const tag = document.createElement('span');
+                    tag.className = 'missing-tag';
+                    tag.textContent = field.toUpperCase();
+                    missingFields.appendChild(tag);
+                });
+            }
+
+            // Load thumbnail
+            const thumbnailContainer = document.getElementById('thumbnailContainer');
+            thumbnailContainer.innerHTML = `<img src="${API_URL}/api/projects/${currentProjectId}/thumbnail" alt="Preview" onerror="this.parentElement.innerHTML='<div class=\\'thumbnail-placeholder\\'>🖼️</div>'">`;
+
+            // Show results
+            results.classList.add('show');
+            exportSection.classList.add('show');
+            showStatus('File processed successfully!', 'success');
+        }
+
+        async function exportFormat(format) {
+            if (!currentProjectId) {
+                showStatus('Please upload a file first.', 'error');
+                return;
+            }
+
+            showStatus(`Generating ${format.toUpperCase()} export...`, 'success');
+
+            try {
+                const response = await fetch(`${API_URL}/api/exports/${currentProjectId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ format: format })
+                });
+
+                const data = await response.json();
+                showStatus(`${format.toUpperCase()} export started! Task ID: ${data.task_id}`, 'success');
+
+            } catch (error) {
+                showStatus(`Export failed: ${error.message}`, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message show ${type}`;
+        }
+
+        function hideStatus() {
+            statusMessage.classList.remove('show');
+        }
+
+        function getContrastColor(hexColor) {
+            if (!hexColor) return '#ffffff';
+            const hex = hexColor.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            return brightness > 128 ? '#000000' : '#ffffff';
+        }
+    </script>
+</body>
+</html>
